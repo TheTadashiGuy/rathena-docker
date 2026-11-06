@@ -87,6 +87,21 @@ services:
       driver: json-file
       options: { max-size: 10m, max-file: "3" }
 
+  init-db:
+    build:
+      context: .
+      dockerfile: init-db.Dockerfile
+    image: rathena-init-db:1
+    container_name: ra-init-db
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      RA_DB_HOST: db
+      RA_DB_NAME: ${RA_DB_NAME}
+      RA_DB_ROOT_PASSWORD: ${RA_DB_ROOT_PASSWORD}
+
   login:
     image: *rathena-image
     container_name: ra-login
