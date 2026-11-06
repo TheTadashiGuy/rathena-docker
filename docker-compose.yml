@@ -30,7 +30,6 @@ services:
     image: rathena-config:1
     container_name: ra-config
     restart: "no"
-
     environment:
       RA_CONFIG_DIR: /config
       RA_DB_HOST: ${RA_DB_HOST:-db}
@@ -47,7 +46,6 @@ services:
       RA_JOB_EXP_RATE: ${RA_JOB_EXP_RATE}
       RA_DROP_RATE: ${RA_DROP_RATE}
       RA_CARD_RATE: ${RA_CARD_RATE}
-
     volumes:
       - ragnarok_config:/config
   db:
@@ -75,10 +73,8 @@ services:
       MARIADB_PASSWORD: ${RA_DB_PASSWORD}
       MARIADB_ROOT_PASSWORD: ${RA_DB_ROOT_PASSWORD}
       TZ: ${RA_TIMEZONE}
-    volumes:
-      - ./data/mysql:/var/lib/mysql
-      # The schema is loaded once, on the first start, from the image's own
-      # sql-files — see the README. Put them here to have it done for you.
+      volumes:
+        - ragnarok_db:/var/lib/mysql
     healthcheck:
       test: ["CMD-SHELL", "healthcheck.sh --connect --innodb_initialized || exit 1"]
       interval: 20s
@@ -162,7 +158,6 @@ services:
         restart: true
       login:
         condition: service_healthy
-
     environment:
       TZ: ${RA_TIMEZONE}
     volumes:
