@@ -1,35 +1,22 @@
-#!/bin/bash
-# render-conf.sh — build rAthena's conf/import/* from .env.
-#
-# WHY A GENERATOR. rAthena configuration files have no variable substitution, so
-# the database password, the inter-server credentials and the public address would
-# otherwise be typed into several files by hand and drift from .env the first time
-# one of them changed. Here .env is the single source and these files are output.
-#
-# WHY conf/import AND NOT THE SHIPPED FILES. rAthena reads conf/*.conf and then
-# overlays conf/import/*.txt. Editing the shipped files means every image rebuild
-# overwrites your settings; the import directory is the documented way in and
-# survives untouched.
-#
-# The generated files carry secrets, so they are 600 and git-ignored — the same
-# treatment as left4dead2/server.cfg and jediacademy/cfg/server.cfg, which hold rcon
-# passwords. They ARE in the restic stacks-config snapshot, and they can be rebuilt
-# from .env at any time by running this script.
-set -euo pipefail
-cd "$(dirname "$0")"
-set -a
-# shellcheck source=/dev/null
-. ./.env
-set +a
+#!/bin/sh
+
+# Generate rAthena configuration files from Docker environment variables.
+
+set -eu
+
+: "${RA_CONFIG_DIR:=/config}"
+
 umask 077
-mkdir -p conf-import
+
+mkdir -p "$RA_CONFIG_DIR"
+cd "$RA_CONFIG_DIR"
 
 # --- database, used by login, char and map -----------------------------------
 # ${RA_DB_HOST} is the compose service name — `db` — not an address. The database
 # publishes no port, so it is reachable on this network and nowhere else; rAthena's
 # own tools/docker/ publishes 3306 to the host with a hardcoded password, which is
 # the thing this avoids.
-cat > conf-import/inter_conf.txt <<EOF
+cat > inter_conf.txt <<EOF
 login_server_ip: ${RA_DB_HOST}
 login_server_port: 3306
 login_server_id: ${RA_DB_USER}
@@ -85,7 +72,7 @@ EOF
 # reports only "Invalid password" for an account whose name it just echoed back
 # correctly. Measured 2026-08-07: a 24-character password was refused, its first
 # 23 characters were accepted. .env now generates 20.
-cat > conf-import/char_conf.txt <<EOF
+cat > char_conf.txt <<EOF
 server_name: ${RA_SERVER_NAME}
 userid: ${RA_INTER_USER}
 passwd: ${RA_INTER_PASS}
@@ -102,7 +89,7 @@ pincode_enabled: no
 EOF
 
 # --- map server ---------------------------------------------------------------
-cat > conf-import/map_conf.txt <<EOF
+cat > map_conf.txt <<EOF
 userid: ${RA_INTER_USER}
 passwd: ${RA_INTER_PASS}
 char_ip: ${RA_CHAR_HOST}
@@ -118,7 +105,7 @@ EOF
 # Cards stay at 100 (1x), boss cards too. That is the standard mid-rate shape:
 # gear should flow, MVP cards should stay rare, or there is nothing left to want
 # after the first week.
-cat > conf-import/battle_conf.txt <<EOF
+cat > battle_conf.txt <<EOF
 base_exp_rate: ${RA_BASE_EXP_RATE}
 job_exp_rate: ${RA_JOB_EXP_RATE}
 
@@ -136,12 +123,12 @@ item_rate_card_boss: ${RA_CARD_RATE}
 item_rate_mvp: ${RA_CARD_RATE}
 EOF
 
-chmod 600 conf-import/*.txt
+chmod 600 *.txt
 
 # rAthena looks for these two optional imports and logs an Error when they are
 # absent. They are legitimately empty here — but an error line that is always
 # present is an error line nobody reads, and the next real one hides behind it.
-for f in packet_conf script_conf log_conf; do : > "conf-import/$f.txt"; done
+for f in packet_conf script_conf log_conf; do : > "$f.txt"; done
 
 # inter_server.yml is the same story with a different extension: char-server logs
 # "Failed to open INTER_SERVER_DB database file" on every start without it. It is
@@ -157,7 +144,7 @@ for f in packet_conf script_conf log_conf; do : > "conf-import/$f.txt"; done
 # individually takes as many restarts as there are files. The full set comes from
 # grepping the shipped conf/ and db/ for conf/import/*.yml references.
 for db in inter_server:INTER_SERVER_DB groups:PLAYER_GROUP_DB atcommands:ATCOMMAND_DB; do
-  cat > "conf-import/${db%%:*}.yml" <<YML
+  cat > "${db%%:*}.yml" <<YML
 Header:
   Type: ${db##*:}
   Version: 1
@@ -166,8 +153,8 @@ YML
 done
 
 # Plain-text imports only have to exist.
-for f in msg_conf web_conf; do : > "conf-import/$f.txt"; done
-chmod 600 conf-import/*.yml conf-import/*.txt
+for f in msg_conf web_conf; do : > "$f.txt"; done
+chmod 600 *.yml *.txt
 
 # --- login server ---------------------------------------------------------------
 # SELF-REGISTRATION ON. rAthena ships new_account: no, so without this the first
@@ -213,14 +200,14 @@ chmod 600 conf-import/*.yml conf-import/*.txt
 #   zen.spamhaus.org      -> 127.255.255.254   refuses public resolvers
 # So: drop the dead one, keep the live one, add DroneBL because open proxies are
 # what actually shows up on a game server.
-cat > conf-import/login_conf.txt <<EOF
+cat > login_conf.txt <<EOF
 new_account: yes
 new_acc_length_limit: yes
 use_MD5_passwords: yes
 use_dnsbl: yes
 dnsbl_servers: bl.blocklist.de, dnsbl.dronebl.org
 EOF
-chmod 600 conf-import/*.txt
+chmod 600 *.txt
 
 # The servers read these as the unprivileged rathena user inside the
 # container, whose uid does not match the host owner — the rendered
@@ -228,7 +215,7 @@ chmod 600 conf-import/*.txt
 # config "disappears" (EACCES surfaces as "file not found"). The secrets
 # in here are the same ones .env already holds; protect .env and the
 # host, not these derived copies.
-chmod 755 conf-import
-chmod 644 conf-import/*
+chmod 755 .
+chmod 644 *
 
-echo "rendered $(find conf-import -type f | wc -l) files into conf-import/ from .env"
+echo "rendered $(find . -type f | wc -l) files into conf-import/ from .env"
