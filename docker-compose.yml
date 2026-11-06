@@ -73,8 +73,8 @@ services:
       MARIADB_PASSWORD: ${RA_DB_PASSWORD}
       MARIADB_ROOT_PASSWORD: ${RA_DB_ROOT_PASSWORD}
       TZ: ${RA_TIMEZONE}
-      volumes:
-        - ragnarok_db:/var/lib/mysql
+    volumes:
+      - ragnarok_db:/var/lib/mysql
     healthcheck:
       test: ["CMD-SHELL", "healthcheck.sh --connect --innodb_initialized || exit 1"]
       interval: 20s
