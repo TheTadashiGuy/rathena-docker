@@ -23,6 +23,33 @@ x-images:
   mariadb: &mariadb-image ${RA_DB_IMAGE_TAG:-mariadb:${RA_DB_IMAGE_VERSION:-11.8@sha256:6422478cb8e159f080fb1d8ccf65101e26fe51385787fde7d16c3b165a331f15}}
 
 services:
+  config:
+    build:
+      context: .
+      dockerfile: config.Dockerfile
+    image: rathena-config:1
+    container_name: ra-config
+    restart: "no"
+
+    environment:
+      RA_CONFIG_DIR: /config
+      RA_DB_HOST: ${RA_DB_HOST:-db}
+      RA_DB_NAME: ${RA_DB_NAME}
+      RA_DB_USER: ${RA_DB_USER}
+      RA_DB_PASSWORD: ${RA_DB_PASSWORD}
+      RA_SERVER_NAME: ${RA_SERVER_NAME}
+      RA_INTER_USER: ${RA_INTER_USER}
+      RA_INTER_PASS: ${RA_INTER_PASS}
+      RA_LOGIN_HOST: ${RA_LOGIN_HOST:-login}
+      RA_PUBLIC_IP: ${RA_PUBLIC_IP}
+      RA_CHAR_HOST: ${RA_CHAR_HOST:-char}
+      RA_BASE_EXP_RATE: ${RA_BASE_EXP_RATE}
+      RA_JOB_EXP_RATE: ${RA_JOB_EXP_RATE}
+      RA_DROP_RATE: ${RA_DROP_RATE}
+      RA_CARD_RATE: ${RA_CARD_RATE}
+
+    volumes:
+      - ragnarok_config:/config
   db:
     image: *mariadb-image
     container_name: ra-db
@@ -89,11 +116,15 @@ services:
     # stops the three, recreates db, then starts login, char and map in this
     # order, each healthy before the next. tests/e2e-db-recreate.sh checks it.
     depends_on:
-      db: { condition: service_healthy, restart: true }
+      config:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+        restart: true
     environment:
       TZ: ${RA_TIMEZONE}
     volumes:
-      - /opt/ragnarok/source/conf-import:/rathena/conf/import:ro
+      - ragnarok_config:/rathena/conf/import:ro
       - ragnarok_logs:/rathena/log
     ports:
       - "192.168.2.100:6900:6900/tcp"
@@ -124,12 +155,18 @@ services:
           cpus: "${RA_CHAR_CPU_RESERVATION:-0.25}"
     command: ["./char-server"]
     depends_on:
-      db: { condition: service_healthy, restart: true }
-      login: { condition: service_healthy }
+      config:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+        restart: true
+      login:
+        condition: service_healthy
+
     environment:
       TZ: ${RA_TIMEZONE}
     volumes:
-      - /opt/ragnarok/source/conf-import:/rathena/conf/import:ro
+      - ragnarok_config:/rathena/conf/import:ro
       - ragnarok_logs:/rathena/log
     ports:
       - "192.168.2.100:6121:6121/tcp"
@@ -160,12 +197,17 @@ services:
           cpus: "${RA_MAP_CPU_RESERVATION:-0.5}"
     command: ["./map-server"]
     depends_on:
-      db: { condition: service_healthy, restart: true }
-      char: { condition: service_healthy }
+      config:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+        restart: true
+      char:
+        condition: service_healthy
     environment:
       TZ: ${RA_TIMEZONE}
     volumes:
-      - /opt/ragnarok/source/conf-import:/rathena/conf/import:ro
+      - ragnarok_config:/rathena/conf/import:ro
       - ragnarok_logs:/rathena/log
     ports:
        - "192.168.2.100:5121:5121/tcp"
@@ -293,7 +335,9 @@ services:
     logging:
       driver: json-file
       options: { max-size: 10m, max-file: "3" }
+
 volumes:
   ragnarok_db:
+  ragnarok_config:
   ragnarok_logs:
   ragnarok_backups:
