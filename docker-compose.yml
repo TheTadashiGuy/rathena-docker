@@ -72,6 +72,7 @@ services:
       MARIADB_USER: ${RA_DB_USER}
       MARIADB_PASSWORD: ${RA_DB_PASSWORD}
       MARIADB_ROOT_PASSWORD: ${RA_DB_ROOT_PASSWORD}
+      MARIADB_ROOT_HOST: "%"
       TZ: ${RA_TIMEZONE}
     volumes:
       - ragnarok_db:/var/lib/mysql
@@ -87,7 +88,7 @@ services:
       driver: json-file
       options: { max-size: 10m, max-file: "3" }
 
-  init-db:
+ init-db:
     build:
       context: .
       dockerfile: init-db.Dockerfile
@@ -100,6 +101,8 @@ services:
     environment:
       RA_DB_HOST: db
       RA_DB_NAME: ${RA_DB_NAME}
+      RA_DB_USER: ${RA_DB_USER}
+      RA_DB_PASSWORD: ${RA_DB_PASSWORD}
       RA_DB_ROOT_PASSWORD: ${RA_DB_ROOT_PASSWORD}
 
   login:
@@ -128,6 +131,8 @@ services:
     # order, each healthy before the next. tests/e2e-db-recreate.sh checks it.
     depends_on:
       config:
+        condition: service_completed_successfully
+      init-db:
         condition: service_completed_successfully
       db:
         condition: service_healthy
@@ -167,6 +172,8 @@ services:
     command: ["./char-server"]
     depends_on:
       config:
+        condition: service_completed_successfully
+      init-db:
         condition: service_completed_successfully
       db:
         condition: service_healthy
@@ -208,6 +215,8 @@ services:
     command: ["./map-server"]
     depends_on:
       config:
+        condition: service_completed_successfully
+      init-db:
         condition: service_completed_successfully
       db:
         condition: service_healthy
@@ -252,7 +261,10 @@ services:
           cpus: "${RA_PW_CPU_RESERVATION:-0.1}"
     build: ./webpw
     depends_on:
-      db: { condition: service_healthy }
+      db:
+        condition: service_healthy
+      init-db:
+        condition: service_completed_successfully
     environment:
       RA_DB_HOST: db
       RA_DB_USER: ${RA_DB_USER}
