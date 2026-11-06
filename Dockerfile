@@ -38,7 +38,7 @@ ARG RATHENA_REF=d4b8e7b8f16061cc2496d377ac8f777ce72a4f39
 # falls under PACKETVER_MAIN and suits a pre-renewal shard; it is what the
 # widely-linked pre-renewal client pack speaks. See src/config/packets.hpp for
 # the ranges, and change this to match whatever client you actually hand out.
-ARG PACKETVER=20200401
+ARG PACKETVER=20211103
 
 # Shallow clone of one commit: rAthena has no releases, only a rolling master, so
 # "the version" IS the commit. Pinning it is the difference between a rebuild that
@@ -50,7 +50,7 @@ RUN git init -q . \
  && git checkout -q FETCH_HEAD \
  && git rev-parse HEAD > /src/BUILT_FROM
 
-RUN ./configure --enable-prere --enable-packetver=${PACKETVER} \
+RUN ./configure --enable-packetver=${PACKETVER} \
  && make server \
  && test -x login-server && test -x char-server && test -x map-server
 
