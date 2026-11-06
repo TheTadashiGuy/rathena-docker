@@ -18,7 +18,7 @@
 # CI (the Trivy scan and the freshness check) reads the pins from these lines:
 # this block is the single source of truth.
 x-images:
-  rathena: &rathena-image ${RA_IMAGE_TAG:-rathena:prere-20200401-a3.24}
+  rathena: &rathena-image ${RA_IMAGE_TAG:-rathena:renewal-20211103-a3.24}
   webpw: &webpw-image ${RA_PW_IMAGE_TAG:-rathena-webpw:1}
   mariadb: &mariadb-image ${RA_DB_IMAGE_TAG:-mariadb:${RA_DB_IMAGE_VERSION:-11.8@sha256:6422478cb8e159f080fb1d8ccf65101e26fe51385787fde7d16c3b165a331f15}}
 
@@ -52,7 +52,6 @@ services:
       - ./data/mysql:/var/lib/mysql
       # The schema is loaded once, on the first start, from the image's own
       # sql-files — see the README. Put them here to have it done for you.
-      - ./data/sql-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "healthcheck.sh --connect --innodb_initialized || exit 1"]
       interval: 20s
@@ -94,9 +93,10 @@ services:
     environment:
       TZ: ${RA_TIMEZONE}
     volumes:
-      - ./conf-import:/rathena/conf/import:ro
-      - ./logs:/rathena/log
-    ports: ["6900:6900"]
+      - /opt/ragnarok/source/conf-import:/rathena/conf/import:ro
+      - ragnarok_logs:/rathena/log
+    ports:
+      - "192.168.2.100:6900:6900/tcp"
     healthcheck:
       test: ["CMD-SHELL", "netstat -ltn | grep -q :6900"]
       interval: 30s
@@ -129,9 +129,10 @@ services:
     environment:
       TZ: ${RA_TIMEZONE}
     volumes:
-      - ./conf-import:/rathena/conf/import:ro
-      - ./logs:/rathena/log
-    ports: ["6121:6121"]
+      - /opt/ragnarok/source/conf-import:/rathena/conf/import:ro
+      - ragnarok_logs:/rathena/log
+    ports:
+      - "192.168.2.100:6121:6121/tcp"
     healthcheck:
       test: ["CMD-SHELL", "netstat -ltn | grep -q :6121"]
       interval: 30s
@@ -164,9 +165,10 @@ services:
     environment:
       TZ: ${RA_TIMEZONE}
     volumes:
-      - ./conf-import:/rathena/conf/import:ro
-      - ./logs:/rathena/log
-    ports: ["5121:5121"]
+      - /opt/ragnarok/source/conf-import:/rathena/conf/import:ro
+      - ragnarok_logs:/rathena/log
+    ports:
+       - "192.168.2.100:5121:5121/tcp"
     healthcheck:
       test: ["CMD-SHELL", "netstat -ltn | grep -q :5121"]
       interval: 30s
@@ -273,7 +275,7 @@ services:
         sleep "$$BACKUP_INTERVAL";
       done'
     volumes:
-      - ./data/backups:${RA_BACKUPS_PATH:-/srv/rathena/backups}
+      - ragnarok_backups:${RA_BACKUPS_PATH:-/srv/rathena/backups}
     environment:
       RA_DB_NAME: ${RA_DB_NAME}
       RA_DB_USER: ${RA_DB_USER}
@@ -291,3 +293,7 @@ services:
     logging:
       driver: json-file
       options: { max-size: 10m, max-file: "3" }
+volumes:
+  ragnarok_db:
+  ragnarok_logs:
+  ragnarok_backups:
