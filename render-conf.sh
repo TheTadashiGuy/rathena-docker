@@ -57,7 +57,7 @@ log_db_ip: ${RA_DB_HOST}
 log_db_port: 3306
 log_db_id: ${RA_DB_USER}
 log_db_pw: ${RA_DB_PASSWORD}
-log_db_db: ${RA_DB_NAME}
+log_db_db: log
 EOF
 
 # --- char server --------------------------------------------------------------
@@ -163,7 +163,8 @@ chmod 600 *.yml *.txt
 # been a lie. Registration happens by appending _M or _F to the password ONCE, which
 # is the classic Ragnarok convention and the thing every newcomer trips over.
 #
-# Open registration is deliberate: this shard is reachable from the internet like the
+# Open registration is deliberate for this private LAN shard.
+# Anyone with access to the game server can create an account.
 # Source servers, and the private Minecraft worlds are the ones behind a whitelist.
 #
 # PASSWORDS ARE HASHED. rAthena ships use_MD5_passwords: no, which stores account
