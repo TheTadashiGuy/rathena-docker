@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 set -Eeuo pipefail
@@ -19,16 +18,24 @@ done
 
 echo "MariaDB is available."
 
-# Verify required SQL files.
+# Verify that the expected SQL files exist.
 for file in main.sql logs.sql; do
-    if [ ! -s "/rathena/sql-files/$file" ]; then
-        echo "ERROR: Missing or empty SQL file: $file" >&2
+    if [ ! -f "/rathena/sql-files/$file" ]; then
+        echo "ERROR: Missing SQL file: $file" >&2
         exit 1
     fi
 done
 
 echo "Checking database initialization..."
 
+# Create the separate log database.
+mariadb \
+    -h "$DB_HOST" \
+    -u root \
+    -p"${RA_DB_ROOT_PASSWORD}" \
+    -e "CREATE DATABASE IF NOT EXISTS \`$LOG_DB\`;"
+
+# Check whether the databases have already been initialized.
 MAIN_TABLES=$(mariadb \
     -h "$DB_HOST" \
     -u root \
@@ -55,23 +62,12 @@ if [ "$MAIN_TABLES" -gt 0 ] || [ "$LOG_TABLES" -gt 0 ]; then
     exit 1
 fi
 
-echo "Verifying database user..."
-
-mariadb -h "$DB_HOST" -u root -p"${RA_DB_ROOT_PASSWORD}" \
-    -Nse "SELECT User FROM mysql.user WHERE User='${RA_DB_USER}' LIMIT 1" \
-    | grep -qx "$RA_DB_USER" || {
-        echo "ERROR: Database user ${RA_DB_USER} does not exist." >&2
-        exit 1
-    }
-
-echo "Creating log database..."
-
-mariadb -h "$DB_HOST" -u root -p"${RA_DB_ROOT_PASSWORD}" \
-    -e "CREATE DATABASE IF NOT EXISTS \`${LOG_DB}\`;"
-
 echo "Granting database permissions..."
 
-mariadb -h "$DB_HOST" -u root -p"${RA_DB_ROOT_PASSWORD}" \
+mariadb \
+    -h "$DB_HOST" \
+    -u root \
+    -p"${RA_DB_ROOT_PASSWORD}" \
     -e "GRANT ALL PRIVILEGES ON \`${MAIN_DB}\`.* TO '${RA_DB_USER}'@'%';
         GRANT ALL PRIVILEGES ON \`${LOG_DB}\`.* TO '${RA_DB_USER}'@'%';
         FLUSH PRIVILEGES;"
@@ -92,7 +88,7 @@ mariadb \
     -p"${RA_DB_ROOT_PASSWORD}" \
     "$LOG_DB" < /rathena/sql-files/logs.sql
 
-if [ -s /rathena/sql-files/roulette_default_data.sql ]; then
+if [ -f /rathena/sql-files/roulette_default_data.sql ]; then
     echo "Importing roulette default data..."
 
     mariadb \
