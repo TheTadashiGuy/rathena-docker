@@ -1,4 +1,4 @@
-# rAthena — Ragnarok Online server emulator, built PRE-RENEWAL.
+# rAthena — Ragnarok Online server emulator, built RENEWAL.
 #
 # WHY WE BUILD OUR OWN. rAthena publishes images on Docker Hub (rathena/rathena-prere
 # and friends) but they were last rebuilt 2025-12-02 while the source is committed to
